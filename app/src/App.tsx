@@ -1,0 +1,89 @@
+import React, { useState, useEffect } from 'react';
+import './App.css';
+import iconv from 'iconv-lite';
+import { Buffer } from 'buffer';
+import { deEncapsulateSync } from 'rtf-stream-parser';
+
+// Buffer is not defined
+// ReferenceError: Buffer is not defined
+//     at Tokenize._transform (http://localhost:3000/msgreader_demo3/static/js/bundle.js:50304:42)
+//     at deEncapsulateSync (http://localhost:3000/msgreader_demo3/static/js/bundle.js:50014:11)
+//     at http://localhost:3000/msgreader_demo3/static/js/bundle.js:63:92
+//     at parseMsgFileAsync (http://localhost:3000/msgreader_demo3/static/js/bundle.js:49:5)
+
+// ↓ is a workaround for ↑
+
+window.Buffer = Buffer;
+
+// ---
+
+// Module not found: Error: Can't resolve 'stream' in 'V:\msgreader_demo3\app\node_modules\rtf-stream-parser\dist\src'
+
+// BREAKING CHANGE: webpack < 5 used to include polyfills for node.js core modules by default.
+// This is no longer the case. Verify if you need this module and configure a polyfill for it.
+
+// If you want to include a polyfill, you need to:
+// 	- add a fallback 'resolve.fallback: { "stream": require.resolve("stream-browserify") }'
+// 	- install 'stream-browserify'
+// If you don't want to include a polyfill, you can use an empty module like this:
+// 	resolve.fallback: { "stream": false }
+
+// Include ↓ at package.json (yarn) as a workaround of ↑
+
+// {
+//   "dependencies": {
+//     "stream": "npm:stream-browserify@3.0.0"
+//   },
+// }
+
+// ---
+
+function App() {
+  const [rtf, setRtf] = useState("");
+  const [htmlHref, setHtmlHref] = useState("");
+  const [html, setHtml] = useState("");
+
+  useEffect(
+    () => {
+      if (rtf.length !== 0) {
+        try {
+          const result = deEncapsulateSync(rtf, { decode: iconv.decode });
+          setHtml(result.text + "");
+          setHtmlHref(URL.createObjectURL(new Blob([result.text])));
+        }
+        catch (ex) {
+          setHtml(ex + "");
+          setHtmlHref("");
+        }
+      }
+      else {
+        setHtml("");
+        setHtmlHref("");
+      }
+    },
+    [rtf]
+  );
+
+  return (<>
+    <h1>rtf-stream-parser_demo</h1>
+    <div>
+      <p>
+        Paste RTF here
+      </p>
+      <p>
+        RTF:<br />
+        <blockquote>
+          <textarea value={rtf} cols={120} rows={20} onChange={e => setRtf(e.target.value)} />
+        </blockquote>
+      </p>
+      <p>
+        HTML ({htmlHref && <a href={htmlHref} download="file.html">Download</a>}) converted with <a href="https://www.npmjs.com/package/rtf-stream-parser" target='_blank' rel='noreferrer'>rtf-stream-parser</a>:<br />
+        <blockquote>
+          <textarea value={html} cols={120} rows={20} />
+        </blockquote>
+      </p>
+    </div >
+  </>);
+}
+
+export default App;
